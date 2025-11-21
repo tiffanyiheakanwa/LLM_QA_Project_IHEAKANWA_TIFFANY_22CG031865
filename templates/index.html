@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LLM Q&A System</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 800px;
+            width: 100%;
+            padding: 40px;
+        }
+
+        h1 {
+            color: #667eea;
+            text-align: center;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 1.1em;
+        }
+
+        .input-section {
+            margin-bottom: 30px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 10px;
+            color: #333;
+            font-weight: 600;
+            font-size: 1.1em;
+        }
+
+        textarea {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 16px;
+            font-family: inherit;
+            resize: vertical;
+            transition: border-color 0.3s;
+        }
+
+        textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        button {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .results {
+            margin-top: 30px;
+            display: none;
+        }
+
+        .result-box {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 15px;
+            border-left: 4px solid #667eea;
+        }
+
+        .result-label {
+            font-weight: 600;
+            color: #667eea;
+            margin-bottom: 8px;
+            font-size: 0.95em;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .result-content {
+            color: #333;
+            line-height: 1.6;
+            font-size: 1.05em;
+        }
+
+        .answer-box {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            border-left: 4px solid #764ba2;
+        }
+
+        .loader {
+            display: none;
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .loader-spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error {
+            background: #fee;
+            color: #c33;
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 20px;
+            display: none;
+            border-left: 4px solid #c33;
+        }
+
+        .timestamp {
+            text-align: center;
+            color: #999;
+            font-size: 0.9em;
+            margin-top: 20px;
+        }
+
+        @media (max-width: 600px) {
+            .container {
+                padding: 20px;
+            }
+
+            h1 {
+                font-size: 2em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🤖 LLM Q&A System</h1>
+        <p class="subtitle">Ask me anything and get intelligent answers powered by AI</p>
+
+        <div class="input-section">
+            <label for="question">Your Question:</label>
+            <textarea 
+                id="question" 
+                rows="4" 
+                placeholder="Type your question here... (e.g., What is artificial intelligence?)"
+            ></textarea>
+        </div>
+
+        <button id="askBtn" onclick="askQuestion()">Ask Question</button>
+
+        <div class="loader" id="loader">
+            <div class="loader-spinner"></div>
+            <p style="margin-top: 10px; color: #667eea;">Processing your question...</p>
+        </div>
+
+        <div class="error" id="error"></div>
+
+        <div class="results" id="results">
+            <div class="result-box">
+                <div class="result-label">Original Question</div>
+                <div class="result-content" id="originalQuestion"></div>
+            </div>
+
+            <div class="result-box">
+                <div class="result-label">Processed Question</div>
+                <div class="result-content" id="processedQuestion"></div>
+            </div>
+
+            <div class="result-box answer-box">
+                <div class="result-label">Answer</div>
+                <div class="result-content" id="answer"></div>
+            </div>
+
+            <div class="timestamp" id="timestamp"></div>
+        </div>
+    </div>
+
+    <script>
+        async function askQuestion() {
+            const question = document.getElementById('question').value.trim();
+            const askBtn = document.getElementById('askBtn');
+            const loader = document.getElementById('loader');
+            const results = document.getElementById('results');
+            const error = document.getElementById('error');
+
+            // Validation
+            if (!question) {
+                showError('Please enter a question');
+                return;
+            }
+
+            // Reset UI
+            error.style.display = 'none';
+            results.style.display = 'none';
+            loader.style.display = 'block';
+            askBtn.disabled = true;
+
+            try {
+                const response = await fetch('/ask', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ question })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || 'Failed to get answer');
+                }
+
+                // Display results
+                document.getElementById('originalQuestion').textContent = data.original_question;
+                document.getElementById('processedQuestion').textContent = data.processed_question;
+                document.getElementById('answer').textContent = data.answer;
+                document.getElementById('timestamp').textContent = `Answered at: ${data.timestamp}`;
+
+                results.style.display = 'block';
+
+            } catch (err) {
+                showError(err.message);
+            } finally {
+                loader.style.display = 'none';
+                askBtn.disabled = false;
+            }
+        }
+
+        function showError(message) {
+            const error = document.getElementById('error');
+            error.textContent = message;
+            error.style.display = 'block';
+        }
+
+        // Allow Enter key to submit (with Shift+Enter for new line)
+        document.getElementById('question').addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                askQuestion();
+            }
+        });
+    </script>
+</body>
+</html>
